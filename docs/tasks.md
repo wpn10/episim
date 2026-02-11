@@ -86,11 +86,11 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 7: Builder Agent
 **Goal:** `agents/builder.py` — EpidemicModel → generated simulator files.
 
-- [ ] `generate_simulator(model: EpidemicModel, output_dir: Path) -> Path`
-- [ ] System prompt: engineer role, file contracts (model.py interface, solver.py interface, app.py requirements)
-- [ ] Anthropic API call: tool_use with GeneratedFiles schema, 32K max tokens
-- [ ] Write files to output_dir
-- [ ] Test: generate from a hardcoded SIR EpidemicModel → verify files exist and are syntactically valid Python
+- [x] `generate_simulator(model: EpidemicModel, output_dir: Path) -> Path`
+- [x] System prompt: engineer role, file contracts (model.py interface, solver.py interface, app.py requirements)
+- [x] Anthropic API call: tool_use with GeneratedFiles schema, 32K max tokens
+- [x] Write files to output_dir
+- [x] Test: generate from a hardcoded SIR EpidemicModel → verify files exist and are syntactically valid Python
 
 **Deliverable:** Builder produces 5 files that form a runnable Streamlit app.
 
