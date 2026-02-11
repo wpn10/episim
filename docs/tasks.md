@@ -60,10 +60,10 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 5: Context Builder
 **Goal:** `episim/core/context_builder.py` — assemble the 1M-token context.
 
-- [ ] `build_context(paper_text: str, knowledge_dir: Path) -> str`
-- [ ] XML-tagged assembly: `<paper>`, `<reference_models>`, `<parameter_ranges>`, `<solver_guide>`
-- [ ] Read knowledge files from package directory
-- [ ] Test: output contains all sections with correct tags
+- [x] `build_context(paper_text: str, knowledge_dir: Path) -> str`
+- [x] XML-tagged assembly: `<paper>`, `<reference_models>`, `<parameter_ranges>`, `<solver_guide>`
+- [x] Read knowledge files from package directory
+- [x] Test: output contains all sections with correct tags
 
 **Deliverable:** `build_context(text)` returns XML-tagged context string.
 
