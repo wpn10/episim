@@ -72,12 +72,12 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 6: Reader Agent
 **Goal:** `agents/reader.py` — paper → EpidemicModel via Opus 4.6.
 
-- [ ] `extract_model(context: str) -> tuple[EpidemicModel, str]` (model + thinking text)
-- [ ] System prompt: epidemiologist role, extraction instructions, ode_system contract
-- [ ] Anthropic API call: extended thinking (32K budget), tool_use with EpidemicModel schema
-- [ ] Parse response: extract tool_use input → EpidemicModel, extract thinking blocks → str
-- [ ] Error handling: retry once on malformed output
-- [ ] Test with a known SIR paper text → verify correct extraction
+- [x] `extract_model(context: str) -> tuple[EpidemicModel, str]` (model + thinking text)
+- [x] System prompt: epidemiologist role, extraction instructions, ode_system contract
+- [x] Anthropic API call: extended thinking (32K budget), tool_use with EpidemicModel schema
+- [x] Parse response: extract tool_use input → EpidemicModel, extract thinking blocks → str
+- [x] Error handling: retry once on malformed output
+- [x] Test with a known SIR paper text → verify correct extraction
 
 **Deliverable:** Reader extracts a valid EpidemicModel from a paper's text.
 
