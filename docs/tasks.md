@@ -4,28 +4,29 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 
 ---
 
-## Chapter 1: Project Scaffolding
+## Chapter 1: Project Scaffolding — DONE
 **Goal:** Repo structure, dependencies, package init files.
 
-- [ ] Create directory tree: `episim/core/`, `episim/agents/`, `episim/knowledge/`, `output/`, `tests/`
-- [ ] Add all `__init__.py` files
-- [ ] Write `requirements.txt` (anthropic, pymupdf, pydantic, scipy, numpy, streamlit, plotly, pytest)
-- [ ] Write `setup.py` with package metadata
-- [ ] Add `output/` to `.gitignore`
-- [ ] Update `CLAUDE.md` if directory structure changed
+- [x] Create directory tree: `episim/core/`, `episim/agents/`, `tests/`
+- [x] Add all `__init__.py` files
+- [x] Write `requirements.txt`
+- [x] Write `setup.py` with package metadata
+- [x] Add `output/` to `.gitignore`
+- [x] CLAUDE.md created
+- [x] `episim/knowledge/` directory created
 
-**Deliverable:** `pip install -e .` works. `import episim` works.
+**Deliverable:** `pip install -e .` works. `import episim` works. ✓
 
 ---
 
 ## Chapter 2: Model Spec (Central Schema)
 **Goal:** `episim/core/model_spec.py` — the contract between all agents.
 
-- [ ] `Parameter` — value, description, unit, slider_min, slider_max
-- [ ] `ExpectedResult` — metric, value, source, tolerance
-- [ ] `EpidemicModel` — name, paper_title, compartments, parameters, initial_conditions, ode_system, simulation_days, population, expected_results
-- [ ] Validation schemas (`MetricResult`, `ValidationReport`, `GeneratedFiles`)
-- [ ] Test: round-trip JSON serialization, schema generation for tool_use
+- [x] `Parameter` — value, description, unit, slider_min, slider_max
+- [x] `ExpectedResult` — metric, value, source, tolerance
+- [x] `EpidemicModel` — name, paper_title, compartments, parameters, initial_conditions, ode_system, simulation_days, population, expected_results
+- [x] Validation schemas (`MetricResult`, `ValidationReport`, `GeneratedFiles`)
+- [x] Test: round-trip JSON serialization, schema generation for tool_use
 
 **Deliverable:** `EpidemicModel.model_json_schema()` returns valid JSON schema.
 
@@ -150,17 +151,25 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 
 ---
 
-## Chapter 12: Demo Polish
-**Goal:** Make it demo-ready for the hackathon video.
+## Chapter 12: Main Streamlit App + Demo Polish
+**Goal:** Single Streamlit app as the primary interface + demo-ready polish.
 
-- [ ] Streamlit UI polish (layout, colors, typography)
-- [ ] Extended thinking display in the app (show Reader's reasoning)
-- [ ] Reproduction report rendered in the app (not just .md file)
+**Main app (`episim/app.py` or `app.py` at root):**
+- [ ] Upload PDF or paste arxiv URL
+- [ ] "Generate Simulator" button triggers `run_pipeline()` in-process
+- [ ] Progress indicators for each pipeline stage (loading, reading, building, validating)
+- [ ] Display Reader's extended thinking (expandable section — demo highlight)
+- [ ] Render interactive epidemic curves with Plotly (sliders for all parameters)
+- [ ] Show reproduction report (paper vs. simulator comparison table)
+- [ ] "Reset to Paper Defaults" button
+
+**Demo polish:**
+- [ ] UI layout, colors, typography
 - [ ] Pre-test on 2-3 demo papers (SIR, SEIR, SEIR+vaccination)
-- [ ] Record demo video (problem → solution → live slider interaction → validation)
+- [ ] Record demo video (upload → AI reasoning → slider interaction → validation)
 - [ ] Clean up README with screenshots and setup instructions
 
-**Deliverable:** Polished demo video + clean GitHub repo ready for submission.
+**Deliverable:** `streamlit run app.py` → complete upload-to-interactive-simulator experience.
 
 ---
 
