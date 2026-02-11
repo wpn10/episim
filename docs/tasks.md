@@ -49,9 +49,9 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 4: Knowledge Base
 **Goal:** `episim/knowledge/` — static reference files for Reader context.
 
-- [ ] `base_models.md` — SIR, SEIR, SEIRS, SIS formulations with ODE systems, compartment definitions, standard parameter names
-- [ ] `parameters.md` — WHO parameter ranges by disease (COVID, dengue, influenza, malaria, Ebola) with R0 ranges, incubation periods, recovery rates
-- [ ] `solver_guide.md` — scipy solve_ivp usage, method selection (RK45 vs BDF for stiff), max_step guidance, numerical stability tips
+- [x] `base_models.md` — SIR, SEIR, SEIRS, SIS formulations with ODE systems, compartment definitions, standard parameter names
+- [x] `parameters.md` — WHO parameter ranges by disease (COVID, dengue, influenza, malaria, Ebola) with R0 ranges, incubation periods, recovery rates
+- [x] `solver_guide.md` — scipy solve_ivp usage, method selection (RK45 vs BDF for stiff), max_step guidance, numerical stability tips
 
 **Deliverable:** Three .md files with concise, accurate epidemiological reference content.
 
