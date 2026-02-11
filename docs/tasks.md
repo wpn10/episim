@@ -113,11 +113,11 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 9: Debugger Agent
 **Goal:** `agents/debugger.py` — fix validation failures.
 
-- [ ] `debug_and_fix(report: ValidationReport, output_dir: Path, model: EpidemicModel) -> dict[str, str]`
-- [ ] System prompt: provide model spec, generated code, validation results, stderr
-- [ ] Anthropic API call: extended thinking (16K), tool_use returning file patches
-- [ ] `apply_fixes(fixes: dict, output_dir: Path)` — overwrite files
-- [ ] Test: intentionally break a working simulator → debugger fixes it
+- [x] `debug_and_fix(report: ValidationReport, output_dir: Path, model: EpidemicModel) -> dict[str, str]`
+- [x] System prompt: provide model spec, generated code, validation results, stderr
+- [x] Anthropic API call: extended thinking (16K), tool_use returning file patches
+- [x] `apply_fixes(fixes: dict, output_dir: Path)` — overwrite files
+- [x] Test: intentionally break a working simulator → debugger fixes it
 
 **Deliverable:** Debugger can analyze and patch failing generated code.
 
