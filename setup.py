@@ -14,6 +14,7 @@ setup(
         "numpy>=1.26.0",
         "streamlit>=1.35.0",
         "plotly>=5.20.0",
+        "requests>=2.31.0",
     ],
     extras_require={
         "dev": ["pytest>=8.0.0"],

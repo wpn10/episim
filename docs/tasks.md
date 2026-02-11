@@ -35,12 +35,12 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 3: Paper Loader
 **Goal:** `episim/core/paper_loader.py` — PDF/arxiv → raw text.
 
-- [ ] `load_paper(source: str) -> str`
-- [ ] Local PDF path handling (fitz)
-- [ ] arxiv URL handling (download + fitz)
-- [ ] arxiv bare ID handling (e.g. `2401.12345`)
-- [ ] Header/footer stripping heuristic
-- [ ] Test with a real PDF
+- [x] `load_paper(source: str) -> str`
+- [x] Local PDF path handling (fitz)
+- [x] arxiv URL handling (download + fitz)
+- [x] arxiv bare ID handling (e.g. `2401.12345`)
+- [x] Header/footer stripping heuristic
+- [x] Test with a real PDF
 
 **Deliverable:** `load_paper("path/to/paper.pdf")` returns clean text.
 
