@@ -99,12 +99,12 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 8: Validator
 **Goal:** `agents/validator.py` — run generated code, compare metrics.
 
-- [ ] `validate(output_dir: Path, model: EpidemicModel) -> ValidationReport`
-- [ ] Generate `_validate.py` script dynamically based on model's expected_results
-- [ ] Run via subprocess with 30s timeout
-- [ ] Parse JSON output, compute match percentages
-- [ ] Generate `reproduction_report.md` via Claude (formatted table)
-- [ ] Test: create a known-good SIR simulator in a temp dir → validate → expect all pass
+- [x] `validate(output_dir: Path, model: EpidemicModel) -> ValidationReport`
+- [x] Generate `_validate.py` script dynamically based on model's expected_results
+- [x] Run via subprocess with 30s timeout
+- [x] Parse JSON output, compute match percentages
+- [x] Generate `reproduction_report.md` via Claude (formatted table)
+- [x] Test: create a known-good SIR simulator in a temp dir → validate → expect all pass
 
 **Deliverable:** Validator runs generated code and produces a pass/fail report.
 
