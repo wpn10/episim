@@ -126,12 +126,12 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 10: Orchestrator + CLI
 **Goal:** `episim/core/orchestrator.py` — wire everything together.
 
-- [ ] `run_pipeline(paper_source: str, output_base: str) -> Path`
-- [ ] Sequential flow: load → context → read → build → validate → (debug loop) → report
-- [ ] Progress printing to stdout
-- [ ] `save_thinking(thinking_text, output_dir)` — save for demo display
-- [ ] `argparse` CLI: `python -m episim.core.orchestrator --paper <source>`
-- [ ] End-to-end test: real paper → working simulator
+- [x] `run_pipeline(paper_source: str, output_base: str) -> Path`
+- [x] Sequential flow: load → context → read → build → validate → (debug loop) → report
+- [x] Progress printing to stdout
+- [x] `save_thinking(thinking_text, output_dir)` — save for demo display
+- [x] `argparse` CLI: `python -m episim.core.orchestrator --paper <source>`
+- [x] End-to-end test: real paper → working simulator
 
 **Deliverable:** `python -m episim.core.orchestrator --paper paper.pdf` produces a complete validated simulator.
 
