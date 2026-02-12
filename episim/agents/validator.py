@@ -41,7 +41,6 @@ def _generate_validate_script(model: EpidemicModel) -> str:
                 f'    metrics.append({{"metric": "{er.metric}", "actual": {expr}}})'
             )
         else:
-            # Unknown metric — skip with a placeholder
             metric_lines.append(
                 f'    metrics.append({{"metric": "{er.metric}", "actual": None}})'
             )
@@ -52,29 +51,29 @@ def _generate_validate_script(model: EpidemicModel) -> str:
     param_values = {k: v.value for k, v in model.parameters.items()}
     y0 = [model.initial_conditions[c] for c in model.compartments]
 
-    script = textwrap.dedent(f"""\
-        import sys
-        import json
-        import numpy as np
-        from model import COMPARTMENTS, derivatives
-        from solver import run_simulation
-
-        params = {json.dumps(param_values)}
-        y0 = {json.dumps(y0)}
-        t_span = (0, {model.simulation_days})
-        population = {model.population}
-
-        try:
-            results = run_simulation(params, y0, t_span)
-            infected_compartment = "{infected}"
-            metrics = []
-        {metrics_block}
-            print(json.dumps(metrics))
-        except Exception as e:
-            print(json.dumps({{"error": str(e)}}), file=sys.stderr)
-            sys.exit(1)
-    """)
-    return script
+    lines = [
+        "import sys",
+        "import json",
+        "import numpy as np",
+        "from model import COMPARTMENTS, derivatives",
+        "from solver import run_simulation",
+        "",
+        f"params = {json.dumps(param_values)}",
+        f"y0 = {json.dumps(y0)}",
+        f"t_span = (0, {model.simulation_days})",
+        f"population = {model.population}",
+        "",
+        "try:",
+        "    results = run_simulation(params, y0, t_span)",
+        f'    infected_compartment = "{infected}"',
+        "    metrics = []",
+        metrics_block,
+        "    print(json.dumps(metrics))",
+        "except Exception as e:",
+        '    print(json.dumps({"error": str(e)}), file=sys.stderr)',
+        "    sys.exit(1)",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def validate(output_dir: Path, model: EpidemicModel) -> ValidationReport:

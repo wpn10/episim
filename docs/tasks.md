@@ -140,12 +140,12 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 ## Chapter 11: Testing & Hardening
 **Goal:** Confidence that the pipeline works reliably.
 
-- [ ] `test_model_spec.py` — schema validation, serialization
-- [ ] `test_paper_loader.py` — PDF extraction, arxiv handling
-- [ ] `test_sir_basic.py` — end-to-end on a classic SIR with known analytical solution
-- [ ] `test_seir_basic.py` — end-to-end on a standard SEIR model
-- [ ] `test_pipeline.py` — orchestrator integration test
-- [ ] Edge cases: missing parameters, unclear equations, subprocess crashes
+- [x] `test_model_spec.py` — schema validation, serialization
+- [x] `test_paper_loader.py` — PDF extraction, arxiv handling
+- [x] `test_sir_basic.py` — end-to-end on a classic SIR with known analytical solution
+- [x] `test_seir_basic.py` — end-to-end on a standard SEIR model
+- [x] `test_pipeline.py` — orchestrator integration test
+- [x] Edge cases: missing parameters, unclear equations, subprocess crashes
 
 **Deliverable:** `pytest tests/` passes.
 
