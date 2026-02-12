@@ -155,19 +155,19 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 **Goal:** Single Streamlit app as the primary interface + demo-ready polish.
 
 **Main app (`episim/app.py` or `app.py` at root):**
-- [ ] Upload PDF or paste arxiv URL
-- [ ] "Generate Simulator" button triggers `run_pipeline()` in-process
-- [ ] Progress indicators for each pipeline stage (loading, reading, building, validating)
-- [ ] Display Reader's extended thinking (expandable section — demo highlight)
-- [ ] Render interactive epidemic curves with Plotly (sliders for all parameters)
-- [ ] Show reproduction report (paper vs. simulator comparison table)
-- [ ] "Reset to Paper Defaults" button
+- [x] Upload PDF or paste arxiv URL
+- [x] "Generate Simulator" button triggers `run_pipeline()` in-process
+- [x] Progress indicators for each pipeline stage (loading, reading, building, validating)
+- [x] Display Reader's extended thinking (expandable section — demo highlight)
+- [x] Render interactive epidemic curves with Plotly (sliders for all parameters)
+- [x] Show reproduction report (paper vs. simulator comparison table)
+- [x] "Reset to Paper Defaults" button
 
 **Demo polish:**
-- [ ] UI layout, colors, typography
+- [x] UI layout, colors, typography
 - [ ] Pre-test on 2-3 demo papers (SIR, SEIR, SEIR+vaccination)
 - [ ] Record demo video (upload → AI reasoning → slider interaction → validation)
-- [ ] Clean up README with screenshots and setup instructions
+- [x] Clean up README with screenshots and setup instructions
 
 **Deliverable:** `streamlit run app.py` → complete upload-to-interactive-simulator experience.
 
