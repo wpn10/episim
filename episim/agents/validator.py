@@ -32,9 +32,16 @@ def _generate_validate_script(model: EpidemicModel) -> str:
             infected = c
             break
 
+    # Only use the simple R0=beta/gamma formula for standard models (<=4 compartments).
+    # Complex models (SIDARTHE etc.) reuse parameter names with different meanings.
+    is_standard_model = len(model.compartments) <= 4
+
     metric_lines = []
     for er in model.expected_results:
         comp = _METRIC_COMPUTATIONS.get(er.metric)
+        # Skip hardcoded R0 formula for complex models — it gives wrong results
+        if er.metric == "R0" and not is_standard_model:
+            comp = None
         if comp:
             expr = comp.replace("infected_compartment", f'"{infected}"')
             metric_lines.append(
