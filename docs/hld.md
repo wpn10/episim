@@ -7,6 +7,24 @@ Uses Opus 4.6 (1M context, extended thinking, 128K output).
 
 ---
 
+## Tech Stack
+
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Language | Python 3.11+ | Ecosystem (scipy, streamlit, anthropic SDK) |
+| AI | `anthropic` Python SDK (raw, not Agent SDK) | Pipeline pattern; one prompt → one response per agent |
+| LLM | Opus 4.6 (`claude-opus-4-6`) | 1M context, extended thinking, 128K output |
+| Schemas | Pydantic v2 | JSON schema for tool_use, validation, serialization |
+| ODE Solver | `scipy.integrate.solve_ivp` | Industry standard, handles stiff + non-stiff |
+| UI | Streamlit (single app: upload + pipeline + results) | Fastest path to interactive sliders + demo |
+| Charts | Plotly | Interactive (hover, zoom, pan) |
+| PDF parsing | PyMuPDF (`fitz`) | Fast, reliable text extraction |
+| Tests | pytest | Standard |
+
+**No FastAPI.** Streamlit serves as both the frontend and the pipeline trigger. One app does everything: upload → process → interactive results. No separate backend needed.
+
+---
+
 ## Data Flow
 
 ```

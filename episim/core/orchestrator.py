@@ -10,9 +10,11 @@ from pathlib import Path
 from episim.core.paper_loader import load_paper
 from episim.core.context_builder import build_context
 from episim.agents.reader import extract_model
+from episim.agents.summarizer import summarize_paper
 from episim.agents.builder import generate_simulator
 from episim.agents.validator import validate, write_report
 from episim.agents.debugger import debug_and_fix, apply_fixes
+from episim.agents.coder import generate_standalone
 
 MAX_RETRIES = 3
 
@@ -42,6 +44,20 @@ def save_thinking(thinking_text: str, output_dir: Path) -> None:
     )
 
 
+def _save_summary(summary, output_dir: Path) -> None:
+    """Save the paper summary as JSON."""
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    (Path(output_dir) / "summary.json").write_text(
+        summary.model_dump_json(indent=2)
+    )
+
+
+def _save_standalone(script, output_dir: Path) -> None:
+    """Save the standalone reproduction script."""
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    (Path(output_dir) / script.filename).write_text(script.code)
+
+
 def run_pipeline(paper_source: str, output_base: str = "output") -> Path:
     """Run the full EpiSim pipeline: paper → validated interactive simulator.
 
@@ -63,13 +79,23 @@ def run_pipeline(paper_source: str, output_base: str = "output") -> Path:
     model, thinking_text = extract_model(context)
     _log(f"Extracted model: {model.name} with {len(model.compartments)} compartments")
 
-    # 4. Generate simulator (Builder Agent)
+    # 4. Summarize paper (Summarizer Agent — non-critical)
+    _log("Summarizer agent generating paper summary...")
+    try:
+        summary = summarize_paper(paper_text, model)
+        output_dir = Path(output_base) / paper_name
+        _save_summary(summary, output_dir)
+        _log("Paper summary generated")
+    except Exception as e:
+        _log(f"Summarizer skipped: {e}")
+
+    # 5. Generate simulator (Builder Agent)
     output_dir = Path(output_base) / paper_name
     _log(f"Builder agent generating simulator in {output_dir}/...")
     generate_simulator(model, output_dir)
     _log("Simulator files generated")
 
-    # 5. Validate + Debug loop
+    # 6. Validate + Debug loop
     report = None
     for attempt in range(1, MAX_RETRIES + 1):
         _log(f"Validation attempt {attempt}/{MAX_RETRIES}...")
@@ -92,11 +118,20 @@ def run_pipeline(paper_source: str, output_base: str = "output") -> Path:
             apply_fixes(fixes, output_dir)
             _log(f"Applied fixes to: {', '.join(fixes.keys())}")
 
-    # 6. Write reproduction report
+    # 7. Write reproduction report
     write_report(report, output_dir)
     _log("Reproduction report written")
 
-    # 7. Save thinking chain for demo display
+    # 8. Generate standalone script (Coder Agent — non-critical)
+    _log("Coder agent generating standalone script...")
+    try:
+        standalone = generate_standalone(model, paper_text)
+        _save_standalone(standalone, output_dir)
+        _log(f"Standalone script: {standalone.filename}")
+    except Exception as e:
+        _log(f"Coder skipped: {e}")
+
+    # 9. Save thinking chain for demo display
     save_thinking(thinking_text, output_dir)
     _log("Thinking chain saved")
 

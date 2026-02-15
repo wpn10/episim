@@ -40,6 +40,23 @@ class GeneratedFiles(BaseModel):
     requirements_txt: str
 
 
+class PaperSummary(BaseModel):
+    title: str
+    authors: str
+    abstract_summary: str  # 2-3 sentence plain-English summary
+    model_type: str  # e.g. "SIDARTHE (8-compartment COVID-19 model)"
+    key_findings: list[str]  # 3-5 bullet points
+    methodology: str
+    limitations: str
+    public_health_implications: str
+
+
+class StandaloneScript(BaseModel):
+    filename: str  # e.g. "sidarthe_simulation.py"
+    code: str  # Complete standalone Python script
+    description: str  # One-line description for the download button
+
+
 class MetricResult(BaseModel):
     metric: str
     expected: float

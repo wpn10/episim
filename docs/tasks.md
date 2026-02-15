@@ -173,6 +173,49 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 
 ---
 
+## Chapter 13: Summarizer Agent — DONE
+**Goal:** `agents/summarizer.py` — plain-English paper summary.
+
+- [x] `PaperSummary` schema in `model_spec.py`
+- [x] `summarize_paper(paper_text, model) -> PaperSummary`
+- [x] System prompt: science communicator role, accessible language
+- [x] API call: tool_use with PaperSummary schema, 4K max tokens
+- [x] Wired into orchestrator (non-critical, try/except)
+- [x] Tests: mocked agent test
+
+**Deliverable:** Summarizer produces structured paper digest.
+
+---
+
+## Chapter 14: Coder Agent — DONE
+**Goal:** `agents/coder.py` — standalone reproduction script.
+
+- [x] `StandaloneScript` schema in `model_spec.py`
+- [x] `generate_standalone(model, paper_text) -> StandaloneScript`
+- [x] System prompt: educational script, numpy/scipy/matplotlib only
+- [x] API call: tool_use with StandaloneScript schema, 8K max tokens
+- [x] Paper text truncated to 8000 chars (model spec has all details)
+- [x] Wired into orchestrator (non-critical, try/except)
+- [x] Tests: mocked agent test + truncation test
+
+**Deliverable:** Coder generates a clean, downloadable reproduction script.
+
+---
+
+## Chapter 15: 3-Tab UI — DONE
+**Goal:** `app.py` — Summary | Simulation | Code tabs.
+
+- [x] Tab 1 (Summary): paper digest + reproduction report
+- [x] Tab 2 (Simulation): interactive Plotly charts + parameter sliders
+- [x] Tab 3 (Code): syntax-highlighted script + download button
+- [x] Pipeline calls summarizer + coder agents
+- [x] Progress bar updated for new stages
+- [x] Graceful fallback if summarizer/coder fails
+
+**Deliverable:** `streamlit run app.py` → 3-tab interface.
+
+---
+
 ## Summary
 
 | Ch | What | Files | Blocked By |
@@ -189,3 +232,6 @@ Each chapter is a self-contained unit of work. Complete in order — each depend
 | 10 | Orchestrator | `orchestrator.py` | 6, 7, 8, 9 |
 | 11 | Testing | `tests/*.py` | 10 |
 | 12 | Demo Polish | UI, video, README | 11 |
+| 13 | Summarizer Agent | `summarizer.py` | 2, 6 |
+| 14 | Coder Agent | `coder.py` | 2, 7 |
+| 15 | 3-Tab UI | `app.py` | 13, 14 |
