@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from episim.agents.reader import extract_model, READER_SYSTEM_PROMPT
+from episim.agents.reader import extract_model, READER_SYSTEM_PROMPT, MODEL
 from episim.core.model_spec import EpidemicModel
 
 
@@ -56,11 +56,21 @@ def _make_mock_response(tool_input: dict, include_thinking: bool = True):
     return response
 
 
+def _setup_stream_mock(mock_client, response):
+    """Set up mock_client.messages.stream() to work as a context manager."""
+    stream_ctx = MagicMock()
+    stream_ctx.__enter__ = MagicMock(return_value=stream_ctx)
+    stream_ctx.__exit__ = MagicMock(return_value=False)
+    stream_ctx.get_final_message.return_value = response
+    mock_client.messages.stream.return_value = stream_ctx
+    return stream_ctx
+
+
 @patch("episim.agents.reader.anthropic.Anthropic")
 def test_extract_model_returns_valid_model(mock_anthropic_cls):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    mock_client.messages.create.return_value = _make_mock_response(_SIR_TOOL_INPUT)
+    _setup_stream_mock(mock_client, _make_mock_response(_SIR_TOOL_INPUT))
 
     model, thinking = extract_model("fake paper context")
 
@@ -75,7 +85,7 @@ def test_extract_model_returns_valid_model(mock_anthropic_cls):
 def test_extract_model_captures_thinking(mock_anthropic_cls):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    mock_client.messages.create.return_value = _make_mock_response(_SIR_TOOL_INPUT)
+    _setup_stream_mock(mock_client, _make_mock_response(_SIR_TOOL_INPUT))
 
     model, thinking = extract_model("fake context")
 
@@ -86,30 +96,38 @@ def test_extract_model_captures_thinking(mock_anthropic_cls):
 def test_extract_model_retries_on_failure(mock_anthropic_cls):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    # First call fails, second succeeds
-    mock_client.messages.create.side_effect = [
-        Exception("API error"),
-        _make_mock_response(_SIR_TOOL_INPUT),
-    ]
+
+    # First call raises, second call succeeds
+    fail_ctx = MagicMock()
+    fail_ctx.__enter__ = MagicMock(side_effect=Exception("API error"))
+    fail_ctx.__exit__ = MagicMock(return_value=False)
+
+    ok_ctx = MagicMock()
+    ok_ctx.__enter__ = MagicMock(return_value=ok_ctx)
+    ok_ctx.__exit__ = MagicMock(return_value=False)
+    ok_ctx.get_final_message.return_value = _make_mock_response(_SIR_TOOL_INPUT)
+
+    mock_client.messages.stream.side_effect = [fail_ctx, ok_ctx]
 
     model, thinking = extract_model("fake context")
     assert model.name == "SIR"
-    assert mock_client.messages.create.call_count == 2
+    assert mock_client.messages.stream.call_count == 2
 
 
 @patch("episim.agents.reader.anthropic.Anthropic")
 def test_extract_model_uses_correct_api_config(mock_anthropic_cls):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    mock_client.messages.create.return_value = _make_mock_response(_SIR_TOOL_INPUT)
+    _setup_stream_mock(mock_client, _make_mock_response(_SIR_TOOL_INPUT))
 
     extract_model("context")
 
-    call_kwargs = mock_client.messages.create.call_args.kwargs
-    assert call_kwargs["model"] == "claude-opus-4-6"
+    call_kwargs = mock_client.messages.stream.call_args.kwargs
+    assert call_kwargs["model"] == MODEL
     assert call_kwargs["max_tokens"] == 16384
-    assert call_kwargs["thinking"]["budget_tokens"] == 32768
-    assert call_kwargs["tool_choice"]["name"] == "submit_model"
+    # No thinking or tool_choice params (removed for API compatibility)
+    assert "tool_choice" not in call_kwargs
+    assert "thinking" not in call_kwargs
 
 
 def test_system_prompt_has_key_instructions():

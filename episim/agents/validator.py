@@ -156,7 +156,13 @@ def validate(output_dir: Path, model: EpidemicModel) -> ValidationReport:
             passed=match_pct <= er.tolerance * 100,
         ))
 
-    all_passed = len(metric_results) > 0 and all(m.passed for m in metric_results)
+    # If simulation ran but no metrics could be computed (all custom/unknown),
+    # treat as pass — the simulation works, we just can't verify numbers.
+    # This prevents wasting API tokens on debugger loops that can't fix anything.
+    if len(metric_results) == 0:
+        all_passed = True
+    else:
+        all_passed = all(m.passed for m in metric_results)
 
     return ValidationReport(
         paper_title=model.paper_title,

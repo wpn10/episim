@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import anthropic
 
 from episim.core.model_spec import EpidemicModel, ValidationReport
+
+MODEL = os.environ.get("EPISIM_MODEL", "claude-sonnet-4-5-20250929")
 
 DEBUGGER_SYSTEM_PROMPT = """You are an expert Python debugger specializing in scientific computing and epidemic modeling. A generated epidemic simulator has failed validation — some metrics don't match the paper's expected values, or the code crashed.
 
@@ -25,7 +28,9 @@ Common issues to look for:
 - Numerical issues (need smaller max_step, different solver method for stiff systems)
 - Import errors or typos in generated code
 
-Return only the files that need fixing. Do not modify files that are correct."""
+Return only the files that need fixing. Do not modify files that are correct.
+
+You MUST call the submit_fixes tool with the fixed files."""
 
 
 def debug_and_fix(
@@ -79,22 +84,18 @@ def debug_and_fix(
         "required": ["fixes", "explanation"],
     }
 
-    response = client.messages.create(
-        model="claude-opus-4-6",
+    with client.messages.stream(
+        model=MODEL,
         max_tokens=16384,
-        thinking={
-            "type": "enabled",
-            "budget_tokens": 16384,
-        },
         system=DEBUGGER_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
         tools=[{
             "name": "submit_fixes",
-            "description": "Submit the fixed file contents",
+            "description": "Submit the fixed file contents. You MUST use this tool.",
             "input_schema": fix_schema,
         }],
-        tool_choice={"type": "tool", "name": "submit_fixes"},
-    )
+    ) as stream:
+        response = stream.get_final_message()
 
     for block in response.content:
         if block.type == "tool_use" and block.name == "submit_fixes":

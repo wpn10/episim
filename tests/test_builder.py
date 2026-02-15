@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from episim.agents.builder import generate_simulator, BUILDER_SYSTEM_PROMPT
+from episim.agents.builder import generate_simulator, BUILDER_SYSTEM_PROMPT, MODEL
 from episim.core.model_spec import EpidemicModel, GeneratedFiles
 
 
@@ -42,11 +42,21 @@ def _make_mock_response(files: GeneratedFiles):
     return response
 
 
+def _setup_stream_mock(mock_client, response):
+    """Set up mock_client.messages.stream() to work as a context manager."""
+    stream_ctx = MagicMock()
+    stream_ctx.__enter__ = MagicMock(return_value=stream_ctx)
+    stream_ctx.__exit__ = MagicMock(return_value=False)
+    stream_ctx.get_final_message.return_value = response
+    mock_client.messages.stream.return_value = stream_ctx
+    return stream_ctx
+
+
 @patch("episim.agents.builder.anthropic.Anthropic")
 def test_generate_creates_all_files(mock_anthropic_cls, tmp_path):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    mock_client.messages.create.return_value = _make_mock_response(_MOCK_FILES)
+    _setup_stream_mock(mock_client, _make_mock_response(_MOCK_FILES))
 
     output_dir = tmp_path / "test_output"
     result = generate_simulator(_SIR_MODEL, output_dir)
@@ -60,7 +70,7 @@ def test_generate_creates_all_files(mock_anthropic_cls, tmp_path):
 def test_generated_model_py_is_valid_python(mock_anthropic_cls, tmp_path):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    mock_client.messages.create.return_value = _make_mock_response(_MOCK_FILES)
+    _setup_stream_mock(mock_client, _make_mock_response(_MOCK_FILES))
 
     output_dir = tmp_path / "test_output"
     generate_simulator(_SIR_MODEL, output_dir)
@@ -73,7 +83,7 @@ def test_generated_model_py_is_valid_python(mock_anthropic_cls, tmp_path):
 def test_generated_solver_py_is_valid_python(mock_anthropic_cls, tmp_path):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    mock_client.messages.create.return_value = _make_mock_response(_MOCK_FILES)
+    _setup_stream_mock(mock_client, _make_mock_response(_MOCK_FILES))
 
     output_dir = tmp_path / "test_output"
     generate_simulator(_SIR_MODEL, output_dir)
@@ -86,7 +96,7 @@ def test_generated_solver_py_is_valid_python(mock_anthropic_cls, tmp_path):
 def test_generated_config_is_valid_json(mock_anthropic_cls, tmp_path):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    mock_client.messages.create.return_value = _make_mock_response(_MOCK_FILES)
+    _setup_stream_mock(mock_client, _make_mock_response(_MOCK_FILES))
 
     output_dir = tmp_path / "test_output"
     generate_simulator(_SIR_MODEL, output_dir)
@@ -100,14 +110,15 @@ def test_generated_config_is_valid_json(mock_anthropic_cls, tmp_path):
 def test_uses_correct_api_config(mock_anthropic_cls, tmp_path):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    mock_client.messages.create.return_value = _make_mock_response(_MOCK_FILES)
+    _setup_stream_mock(mock_client, _make_mock_response(_MOCK_FILES))
 
     generate_simulator(_SIR_MODEL, tmp_path / "out")
 
-    call_kwargs = mock_client.messages.create.call_args.kwargs
-    assert call_kwargs["model"] == "claude-opus-4-6"
-    assert call_kwargs["max_tokens"] == 32768
-    assert call_kwargs["tool_choice"]["name"] == "submit_files"
+    call_kwargs = mock_client.messages.stream.call_args.kwargs
+    assert call_kwargs["model"] == MODEL
+    assert call_kwargs["max_tokens"] == 16384
+    # No tool_choice (removed for API compatibility)
+    assert "tool_choice" not in call_kwargs
 
 
 def test_system_prompt_has_file_contracts():

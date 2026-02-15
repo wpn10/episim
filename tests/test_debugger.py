@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from episim.agents.debugger import debug_and_fix, apply_fixes, DEBUGGER_SYSTEM_PROMPT
+from episim.agents.debugger import debug_and_fix, apply_fixes, DEBUGGER_SYSTEM_PROMPT, MODEL
 from episim.core.model_spec import EpidemicModel, MetricResult, ValidationReport
 
 
@@ -45,6 +45,16 @@ def _make_mock_response(fixes: dict):
     return response
 
 
+def _setup_stream_mock(mock_client, response):
+    """Set up mock_client.messages.stream() to work as a context manager."""
+    stream_ctx = MagicMock()
+    stream_ctx.__enter__ = MagicMock(return_value=stream_ctx)
+    stream_ctx.__exit__ = MagicMock(return_value=False)
+    stream_ctx.get_final_message.return_value = response
+    mock_client.messages.stream.return_value = stream_ctx
+    return stream_ctx
+
+
 @patch("episim.agents.debugger.anthropic.Anthropic")
 def test_debug_returns_fixes(mock_cls, tmp_path):
     mock_client = MagicMock()
@@ -56,7 +66,7 @@ def test_debug_returns_fixes(mock_cls, tmp_path):
     (tmp_path / "config.json").write_text("{}")
 
     expected_fixes = {"model.py": "# fixed model"}
-    mock_client.messages.create.return_value = _make_mock_response(expected_fixes)
+    _setup_stream_mock(mock_client, _make_mock_response(expected_fixes))
 
     fixes = debug_and_fix(_failed_report(), tmp_path, _sir_model())
     assert fixes == expected_fixes
@@ -70,15 +80,16 @@ def test_debug_uses_correct_api_config(mock_cls, tmp_path):
     for f in ["model.py", "solver.py", "app.py", "config.json"]:
         (tmp_path / f).write_text("pass")
 
-    mock_client.messages.create.return_value = _make_mock_response({})
+    _setup_stream_mock(mock_client, _make_mock_response({}))
 
     debug_and_fix(_failed_report(), tmp_path, _sir_model())
 
-    kwargs = mock_client.messages.create.call_args.kwargs
-    assert kwargs["model"] == "claude-opus-4-6"
-    assert kwargs["thinking"]["budget_tokens"] == 16384
+    kwargs = mock_client.messages.stream.call_args.kwargs
+    assert kwargs["model"] == MODEL
     assert kwargs["max_tokens"] == 16384
-    assert kwargs["tool_choice"]["name"] == "submit_fixes"
+    # No thinking or tool_choice (removed for API compatibility)
+    assert "thinking" not in kwargs
+    assert "tool_choice" not in kwargs
 
 
 class TestApplyFixes:

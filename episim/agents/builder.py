@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import anthropic
 
 from episim.core.model_spec import EpidemicModel, GeneratedFiles
+
+MODEL = os.environ.get("EPISIM_MODEL", "claude-sonnet-4-5-20250929")
 
 BUILDER_SYSTEM_PROMPT = """You are an expert Python engineer specializing in scientific computing and interactive web applications. Your task is to generate a complete, self-contained epidemic simulator from a model specification.
 
@@ -55,7 +58,9 @@ You will receive an EpidemicModel JSON spec. Generate five files that together f
 - All files must be syntactically valid Python (or JSON for config.json).
 - The app must work when run with `streamlit run app.py` from the output directory.
 - Do NOT use any external data files — everything is self-contained.
-- Use clear variable names and minimal comments."""
+- Use clear variable names and minimal comments.
+
+You MUST call the submit_files tool with all generated files."""
 
 
 def generate_simulator(model: EpidemicModel, output_dir: Path) -> Path:
@@ -68,9 +73,9 @@ def generate_simulator(model: EpidemicModel, output_dir: Path) -> Path:
     model_json = model.model_dump_json(indent=2)
     tool_schema = GeneratedFiles.model_json_schema()
 
-    response = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=32768,
+    with client.messages.stream(
+        model=MODEL,
+        max_tokens=16384,
         system=BUILDER_SYSTEM_PROMPT,
         messages=[{
             "role": "user",
@@ -78,11 +83,11 @@ def generate_simulator(model: EpidemicModel, output_dir: Path) -> Path:
         }],
         tools=[{
             "name": "submit_files",
-            "description": "Submit all generated simulator files",
+            "description": "Submit all generated simulator files. You MUST use this tool.",
             "input_schema": tool_schema,
         }],
-        tool_choice={"type": "tool", "name": "submit_files"},
-    )
+    ) as stream:
+        response = stream.get_final_message()
 
     # Extract tool_use result
     files = None
@@ -107,6 +112,9 @@ def generate_simulator(model: EpidemicModel, output_dir: Path) -> Path:
     }
 
     for filename, content in file_mapping.items():
+        # Fix escaped newlines — LLM sometimes returns literal \n instead of real newlines
+        if '\\n' in content[:200]:
+            content = content.replace('\\n', '\n').replace('\\t', '\t')
         (output_dir / filename).write_text(content)
 
     return output_dir

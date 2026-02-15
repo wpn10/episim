@@ -1,4 +1,4 @@
-"""Reader Agent — extracts EpidemicModel from paper text via Opus 4.6 + extended thinking."""
+"""Reader Agent — extracts EpidemicModel from paper text via Claude + adaptive thinking."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import os
 import anthropic
 
 from episim.core.model_spec import EpidemicModel
+
+MODEL = os.environ.get("EPISIM_MODEL", "claude-sonnet-4-5-20250929")
 
 READER_SYSTEM_PROMPT = """You are an expert epidemiologist and mathematical modeler. Your task is to extract a complete mathematical epidemic model specification from the research paper provided.
 
@@ -46,11 +48,13 @@ You must identify and extract:
    - peak_day, peak_cases, R0, attack_rate, or custom metrics
    - Include the value, source reference (e.g. "Figure 3", "Table 2"), and tolerance (default 0.05)
 
-Be thorough. Extract ALL parameters, even if there are many. If the paper reports multiple scenarios, use the baseline/default scenario. If a parameter value is not explicitly stated but can be computed from other values, compute it and note the derivation in the description."""
+Be thorough. Extract ALL parameters, even if there are many. If the paper reports multiple scenarios, use the baseline/default scenario. If a parameter value is not explicitly stated but can be computed from other values, compute it and note the derivation in the description.
+
+You MUST call the submit_model tool with the extracted model."""
 
 
 def extract_model(context: str) -> tuple[EpidemicModel, str]:
-    """Extract an EpidemicModel from assembled context using Opus 4.6.
+    """Extract an EpidemicModel from assembled context.
 
     Returns (model, thinking_text) where thinking_text captures the AI's reasoning.
     """
@@ -60,25 +64,23 @@ def extract_model(context: str) -> tuple[EpidemicModel, str]:
 
     for attempt in range(2):
         try:
-            response = client.messages.create(
-                model="claude-opus-4-6",
+            thinking_text = ""
+            tool_input = None
+
+            with client.messages.stream(
+                model=MODEL,
                 max_tokens=16384,
-                thinking={
-                    "type": "enabled",
-                    "budget_tokens": 32768,
-                },
                 system=READER_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": context}],
                 tools=[{
                     "name": "submit_model",
-                    "description": "Submit the extracted epidemic model specification",
+                    "description": "Submit the extracted epidemic model specification. You MUST use this tool.",
                     "input_schema": tool_schema,
                 }],
-                tool_choice={"type": "tool", "name": "submit_model"},
-            )
+            ) as stream:
+                response = stream.get_final_message()
 
             # Extract thinking text
-            thinking_text = ""
             for block in response.content:
                 if block.type == "thinking":
                     thinking_text += block.thinking + "\n"

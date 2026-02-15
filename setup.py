@@ -5,7 +5,7 @@ setup(
     version="0.1.0",
     description="Transform epidemic modeling papers into interactive simulators",
     packages=find_packages(),
-    python_requires=">=3.11",
+    python_requires=">=3.10",
     install_requires=[
         "anthropic>=0.50.0",
         "pymupdf>=1.24.0",
