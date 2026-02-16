@@ -128,8 +128,8 @@ class ThinkingAccumulator:
         taking up space.
         """
         current = self._current_text
-        if len(current) > 800:
-            current = current[-800:]
+        if len(current) > 1200:
+            current = current[-1200:]
         escaped = html_mod.escape(current)
 
         return (
@@ -171,7 +171,7 @@ class ThinkingAccumulator:
         ]
         if content_sections:
             phase, text = content_sections[excerpt_index % len(content_sections)]
-            excerpt = text.strip()[-400:]
+            excerpt = text.strip()[-650:]
             excerpt_html = (
                 f'<span class="replay-phase">{html_mod.escape(phase.value)}</span>\n'
                 f'{html_mod.escape(excerpt)}'
@@ -227,20 +227,20 @@ class ThinkingAccumulator:
             )
         badges_html = " ".join(badges)
 
-        # Thinking excerpt
+        # Thinking stream excerpt — larger, more visible
         content_sections = [
             (p, t) for p, t in self._all_sections() if len(t.strip()) > 50
         ]
         if content_sections:
             phase, text = content_sections[excerpt_index % len(content_sections)]
-            excerpt = text.strip()[-350:]
-            excerpt_html = (
-                f'<span class="replay-phase">'
+            excerpt = text.strip()[-700:]
+            stream_html = (
+                f'<span class="phase">'
                 f'{html_mod.escape(phase.value)}</span>\n'
                 f'{html_mod.escape(excerpt)}'
             )
         else:
-            excerpt_html = ""
+            stream_html = '<span style="opacity:0.3">Waiting...</span>'
 
         n_running = len(running)
         header_text = (
@@ -256,10 +256,10 @@ class ThinkingAccumulator:
             f'{header_text}'
             '<span class="opus-tag">Opus 4.6</span>'
             '</div>'
-            '<div class="thinking-live-console thinking-replay-console">'
+            '<div class="thinking-live-console thinking-parallel-console">'
             '<div class="thinking-content">'
             f'<div class="agent-badges">{badges_html}</div>'
-            f'<div class="replay-excerpt">{excerpt_html}</div>'
+            f'<div class="thinking-stream-text">{stream_html}</div>'
             '</div>'
             '</div>'
             '</div>'

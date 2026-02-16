@@ -643,7 +643,7 @@ hr {
     color: #06d6a0;
     font-family: 'JetBrains Mono', 'Consolas', monospace;
     padding: 20px 24px;
-    height: 200px;
+    height: 280px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -688,8 +688,18 @@ hr {
     background: rgba(255,255,255,0.02) !important;
 }
 .thinking-replay-console {
-    height: 180px;
+    height: 260px;
     justify-content: flex-start;
+}
+.thinking-parallel-console {
+    height: 280px;
+    justify-content: flex-start;
+}
+.thinking-stream-text {
+    color: rgba(6,214,160,0.65);
+    line-height: 1.65;
+    font-size: 0.76rem;
+    margin-top: 4px;
 }
 .phase-chips {
     display: flex;
@@ -763,6 +773,22 @@ hr {
     opacity: 0.45;
     font-size: 0.55rem;
     margin-left: 2px;
+}
+
+/* ── Results Thinking Console ──────────────────────────── */
+.thinking-results-console {
+    background: #060a10;
+    color: rgba(6,214,160,0.7);
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    padding: 20px 24px;
+    max-height: 500px;
+    overflow-y: auto;
+    font-size: 0.76rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    border-radius: 8px;
+    border: 1px solid rgba(6,214,160,0.08);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1016,13 +1042,18 @@ if st.session_state.pipeline_done:
 
     # ── Extended Thinking ───────────────────────────────────────────────
     if st.session_state.thinking:
+        import html as html_mod_app
         st.markdown('<div class="thinking-container">', unsafe_allow_html=True)
-        with st.expander("Extended Thinking — AI Reasoning Process"):
+        with st.expander("Extended Thinking — AI Reasoning Process", expanded=True):
             st.caption(
-                "Watch how Claude Opus 4.6 analyzes the paper's mathematical model "
-                "using extended thinking — deep reasoning chains visible in real-time."
+                "Claude Opus 4.6 adaptive thinking at max effort "
+                "— deep reasoning chains through the paper's mathematical model."
             )
-            st.markdown(st.session_state.thinking)
+            escaped_thinking = html_mod_app.escape(st.session_state.thinking)
+            st.markdown(
+                f'<div class="thinking-results-console">{escaped_thinking}</div>',
+                unsafe_allow_html=True,
+            )
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Sidebar: Parameter Sliders ──────────────────────────────────────
