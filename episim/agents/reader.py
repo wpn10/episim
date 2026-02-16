@@ -77,7 +77,6 @@ def extract_model(
     for attempt in range(2):
         try:
             thinking_text = ""
-            in_thinking_block = False
 
             api_kwargs = dict(
                 model=MODEL,
@@ -96,30 +95,27 @@ def extract_model(
                 api_kwargs["max_tokens"] = 32000
 
             with client.messages.stream(**api_kwargs) as stream:
+                # Match official Anthropic streaming docs exactly:
+                # check delta.type directly, no state tracking needed
                 for event in stream:
-                    # Thinking block boundaries
-                    if event.type == "content_block_start":
-                        block = event.content_block
-                        if getattr(block, "type", None) == "thinking":
-                            in_thinking_block = True
-                        else:
-                            in_thinking_block = False
-                    elif event.type == "content_block_stop":
-                        in_thinking_block = False
-
-                    # Thinking text deltas — stream to callback
-                    elif (
-                        event.type == "content_block_delta"
-                        and in_thinking_block
-                    ):
+                    if event.type == "content_block_delta":
                         delta = event.delta
-                        chunk = getattr(delta, "thinking", None)
-                        if chunk:
-                            thinking_text += chunk
-                            if on_thinking:
-                                on_thinking(chunk)
+                        delta_type = getattr(delta, "type", None)
+                        if delta_type == "thinking_delta":
+                            chunk = getattr(delta, "thinking", "")
+                            if chunk:
+                                thinking_text += chunk
+                                if on_thinking:
+                                    on_thinking(chunk)
 
                 response = stream.get_final_message()
+
+            # Also capture thinking from final message blocks
+            # (fallback for non-streaming or when events were missed)
+            if not thinking_text:
+                for block in response.content:
+                    if block.type == "thinking":
+                        thinking_text += getattr(block, "thinking", "") + "\n"
 
             # Extract tool_use input
             for block in response.content:
