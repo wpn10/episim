@@ -81,7 +81,7 @@ def extract_model(
 
             with client.messages.stream(
                 model=MODEL,
-                max_tokens=16384,
+                max_tokens=40000,
                 thinking={"type": "enabled", "budget_tokens": 32768},
                 system=READER_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": context}],

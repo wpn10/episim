@@ -1,7 +1,10 @@
 """Thinking Stream — captures and classifies Opus 4.6 thinking blocks in real-time.
 
-Provides structured phase detection and a typewriter-console HTML formatter
-for displaying the Reader Agent's reasoning process in the Streamlit UI.
+Two display modes:
+- **Live**: During Reader Agent — fixed-height console, current phase only, newest
+  text always visible (pinned to bottom via flexbox).
+- **Replay**: During later pipeline stages — compact phase chips + rotating excerpt
+  from the thinking analysis, keeping the user engaged throughout.
 """
 
 from __future__ import annotations
@@ -69,9 +72,10 @@ def classify_phase(text: str) -> ThinkingPhase:
 
 
 class ThinkingAccumulator:
-    """Accumulates thinking chunks, tracks phase transitions, and formats HTML.
+    """Accumulates thinking chunks, tracks phase transitions, renders two UI modes.
 
-    Used by the Reader Agent callback to build the real-time thinking console.
+    Live mode: shows only the current phase + latest text (pinned to bottom).
+    Replay mode: shows phase chips + a rotating excerpt for engagement during waits.
     """
 
     def __init__(self):
@@ -88,7 +92,6 @@ class ThinkingAccumulator:
         if len(self._window) > 300:
             new_phase = classify_phase(self._window[-500:])
             if new_phase != self._current_phase:
-                # Save completed phase section
                 self._sections.append((self._current_phase, self._current_text))
                 self._current_phase = new_phase
                 self._current_text = ""
@@ -101,47 +104,93 @@ class ThinkingAccumulator:
         parts.append(self._current_text)
         return "".join(parts)
 
-    def format_html(self) -> str:
-        """Format the accumulated thinking as HTML for the typewriter console.
+    def _all_sections(self) -> list[tuple[ThinkingPhase, str]]:
+        """All sections including current work-in-progress."""
+        return list(self._sections) + [(self._current_phase, self._current_text)]
 
-        Shows completed phases as collapsed headers with char counts,
-        and the current phase with its latest ~1500 characters of text.
+    def _unique_phases(self) -> list[ThinkingPhase]:
+        """Ordered list of unique phases encountered."""
+        seen = set()
+        result = []
+        for phase, _ in self._all_sections():
+            if phase not in seen:
+                seen.add(phase)
+                result.append(phase)
+        return result
+
+    # ── Live Mode ────────────────────────────────────────────────────────
+
+    def format_live_html(self) -> str:
+        """Render for LIVE streaming: current phase + latest text only.
+
+        Fixed-height container with flex-end alignment so newest content
+        is always visible at the bottom — no scrolling, no old phases
+        taking up space.
         """
-        parts: list[str] = []
-
-        # Completed phases — collapsed with char count
-        for phase, text in self._sections:
-            n = len(text)
-            parts.append(
-                f'<span class="phase">'
-                f'{html_mod.escape(phase.value)} '
-                f'<span style="opacity:0.4;font-size:0.65rem">'
-                f'({n:,} chars)</span></span>\n'
-            )
-
-        # Current phase — full header + tail of thinking text
-        parts.append(
-            f'<span class="phase">'
-            f'{html_mod.escape(self._current_phase.value)}</span>\n'
-        )
-
         current = self._current_text
-        if len(current) > 1500:
-            current = "..." + current[-1500:]
-        parts.append(html_mod.escape(current))
-
-        content = "".join(parts)
+        if len(current) > 800:
+            current = current[-800:]
+        escaped = html_mod.escape(current)
 
         return (
-            f'<div class="thinking-live-container">'
-            f'<div class="thinking-live-header">'
-            f'<span class="thinking-dot"></span>'
-            f'Extended Thinking &mdash; Reader Agent'
-            f'<span class="opus-tag">Opus 4.6</span>'
-            f'</div>'
-            f'<div class="thinking-live-console">'
-            f'{content}'
-            f'<span class="cursor">|</span>'
-            f'</div>'
-            f'</div>'
+            '<div class="thinking-live-container">'
+            '<div class="thinking-live-header">'
+            '<span class="thinking-dot"></span>'
+            'Extended Thinking &mdash; Reader Agent'
+            '<span class="opus-tag">Opus 4.6</span>'
+            '</div>'
+            '<div class="thinking-live-console">'
+            '<div class="thinking-content">'
+            f'<span class="phase">{html_mod.escape(self._current_phase.value)}</span>\n'
+            f'{escaped}'
+            '<span class="cursor">|</span>'
+            '</div>'
+            '</div>'
+            '</div>'
+        )
+
+    # ── Replay Mode ──────────────────────────────────────────────────────
+
+    def format_replay_html(self, stage_label: str, excerpt_index: int = 0) -> str:
+        """Render for REPLAY during later pipeline stages.
+
+        Shows a compact row of completed-phase chips, then a rotating excerpt
+        from the thinking analysis. Each pipeline stage gets a different excerpt
+        by passing a different excerpt_index.
+        """
+        # Phase chips
+        phases = self._unique_phases()
+        chips_html = " ".join(
+            f'<span class="phase-chip">{html_mod.escape(p.value)}</span>'
+            for p in phases
+        )
+
+        # Pick excerpt by index (wraps around, skip tiny sections)
+        content_sections = [
+            (p, t) for p, t in self._all_sections() if len(t.strip()) > 50
+        ]
+        if content_sections:
+            phase, text = content_sections[excerpt_index % len(content_sections)]
+            excerpt = text.strip()[-400:]
+            excerpt_html = (
+                f'<span class="replay-phase">{html_mod.escape(phase.value)}</span>\n'
+                f'{html_mod.escape(excerpt)}'
+            )
+        else:
+            excerpt_html = '<span style="opacity:0.4">Analysis complete.</span>'
+
+        return (
+            '<div class="thinking-live-container">'
+            '<div class="thinking-live-header thinking-replay-header">'
+            '<span class="thinking-dot thinking-dot-slow"></span>'
+            f'{html_mod.escape(stage_label)}'
+            '<span class="opus-tag">Opus 4.6</span>'
+            '</div>'
+            '<div class="thinking-live-console thinking-replay-console">'
+            '<div class="thinking-content">'
+            f'<div class="phase-chips">{chips_html}</div>'
+            f'<div class="replay-excerpt">{excerpt_html}</div>'
+            '</div>'
+            '</div>'
+            '</div>'
         )

@@ -643,10 +643,15 @@ hr {
     color: #06d6a0;
     font-family: 'JetBrains Mono', 'Consolas', monospace;
     padding: 20px 24px;
-    max-height: 420px;
-    overflow-y: auto;
+    height: 200px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
     font-size: 0.78rem;
     line-height: 1.7;
+}
+.thinking-content {
     white-space: pre-wrap;
     word-wrap: break-word;
 }
@@ -671,6 +676,55 @@ hr {
 @keyframes blink-cursor {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
+}
+
+/* ── Replay Mode ───────────────────────────────────────── */
+.thinking-dot-slow {
+    animation: pulse-dot 3s ease-in-out infinite !important;
+}
+.thinking-replay-header {
+    color: var(--text-secondary) !important;
+    border-bottom-color: rgba(255,255,255,0.04) !important;
+    background: rgba(255,255,255,0.02) !important;
+}
+.thinking-replay-console {
+    height: 180px;
+    justify-content: flex-start;
+}
+.phase-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(6,214,160,0.06);
+}
+.phase-chip {
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(6,214,160,0.06);
+    border: 1px solid rgba(6,214,160,0.1);
+    padding: 2px 8px;
+    border-radius: 3px;
+    opacity: 0.65;
+}
+.replay-excerpt {
+    color: rgba(6,214,160,0.55);
+    line-height: 1.65;
+    font-size: 0.75rem;
+}
+.replay-phase {
+    display: block;
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.62rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    opacity: 0.6;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -796,12 +850,17 @@ def run_with_progress(paper_source: str):
     def _on_thinking(chunk: str):
         accumulator.add_chunk(chunk)
         thinking_slot.markdown(
-            accumulator.format_html(), unsafe_allow_html=True,
+            accumulator.format_live_html(), unsafe_allow_html=True,
         )
 
     model, thinking_text = extract_model(context, on_thinking=_on_thinking)
-    thinking_slot.empty()  # Clear live console; full text stored in session state
+
+    # ── Transition to replay mode — keep user engaged during remaining stages ──
     progress.progress(40, text="Generating paper summary...")
+    thinking_slot.markdown(
+        accumulator.format_replay_html("Generating Summary", 0),
+        unsafe_allow_html=True,
+    )
 
     # 4. Summarizer Agent (non-critical)
     summary = None
@@ -809,12 +868,22 @@ def run_with_progress(paper_source: str):
         summary = summarize_paper(paper_text, model)
     except Exception:
         pass
+
     progress.progress(50, text="Building interactive simulator...")
+    thinking_slot.markdown(
+        accumulator.format_replay_html("Building Simulator", 1),
+        unsafe_allow_html=True,
+    )
 
     # 5. Builder Agent
     output_dir = Path("output") / model.name.lower().replace(" ", "_")
     generate_simulator(model, output_dir)
+
     progress.progress(70, text="Validating against paper results...")
+    thinking_slot.markdown(
+        accumulator.format_replay_html("Validating Results", 2),
+        unsafe_allow_html=True,
+    )
 
     # 6. Validate + debug loop
     report = None
@@ -825,11 +894,20 @@ def run_with_progress(paper_source: str):
             break
         if attempt < 3:
             progress.progress(70 + attempt * 5, text=f"Debugging discrepancy (attempt {attempt})...")
+            thinking_slot.markdown(
+                accumulator.format_replay_html("Debugging Code", 3),
+                unsafe_allow_html=True,
+            )
             fixes = debug_and_fix(report, output_dir, model)
             apply_fixes(fixes, output_dir)
 
     write_report(report, output_dir)
+
     progress.progress(85, text="Generating standalone reproduction script...")
+    thinking_slot.markdown(
+        accumulator.format_replay_html("Generating Code", 4),
+        unsafe_allow_html=True,
+    )
 
     # 7. Coder Agent (non-critical)
     standalone_script = None
@@ -840,6 +918,7 @@ def run_with_progress(paper_source: str):
     except Exception:
         pass
 
+    thinking_slot.empty()
     progress.progress(100, text="Complete.")
 
     # Store in session state
