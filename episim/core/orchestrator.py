@@ -79,23 +79,38 @@ def run_pipeline(paper_source: str, output_base: str = "output") -> Path:
     model, thinking_text = extract_model(context)
     _log(f"Extracted model: {model.name} with {len(model.compartments)} compartments")
 
-    # 4. Summarize paper (Summarizer Agent — non-critical)
-    _log("Summarizer agent generating paper summary...")
+    # 4. Parallel execution: Summarizer + Builder + Coder
+    from concurrent.futures import ThreadPoolExecutor
+
+    output_dir = Path(output_base) / paper_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    _log("Running Summarizer (medium) + Builder (high) + Coder (high) in parallel...")
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        future_summary = executor.submit(summarize_paper, paper_text, model)
+        future_build = executor.submit(generate_simulator, model, output_dir)
+        future_code = executor.submit(generate_standalone, model, paper_text)
+
+    # Collect results (all futures done after exiting the with block)
     try:
-        summary = summarize_paper(paper_text, model)
-        output_dir = Path(output_base) / paper_name
+        summary = future_summary.result()
         _save_summary(summary, output_dir)
-        _log("Paper summary generated")
+        _log("Summarizer complete (medium effort)")
     except Exception as e:
         _log(f"Summarizer skipped: {e}")
 
-    # 5. Generate simulator (Builder Agent)
-    output_dir = Path(output_base) / paper_name
-    _log(f"Builder agent generating simulator in {output_dir}/...")
-    generate_simulator(model, output_dir)
-    _log("Simulator files generated")
+    future_build.result()  # raises if Builder failed — critical
+    _log("Builder complete (high effort)")
 
-    # 6. Validate + Debug loop
+    try:
+        standalone = future_code.result()
+        _save_standalone(standalone, output_dir)
+        _log(f"Coder complete (high effort): {standalone.filename}")
+    except Exception as e:
+        _log(f"Coder skipped: {e}")
+
+    # 5. Validate + Debug loop (sequential — depends on Builder)
     report = None
     for attempt in range(1, MAX_RETRIES + 1):
         _log(f"Validation attempt {attempt}/{MAX_RETRIES}...")
@@ -113,23 +128,14 @@ def run_pipeline(paper_source: str, output_base: str = "output") -> Path:
             _log(f"Error: {report.error}")
 
         if attempt < MAX_RETRIES:
-            _log("Debugger agent analyzing and patching...")
+            _log("Debugger agent analyzing and patching (high effort)...")
             fixes = debug_and_fix(report, output_dir, model)
             apply_fixes(fixes, output_dir)
             _log(f"Applied fixes to: {', '.join(fixes.keys())}")
 
-    # 7. Write reproduction report
+    # 6. Write reproduction report
     write_report(report, output_dir)
     _log("Reproduction report written")
-
-    # 8. Generate standalone script (Coder Agent — non-critical)
-    _log("Coder agent generating standalone script...")
-    try:
-        standalone = generate_standalone(model, paper_text)
-        _save_standalone(standalone, output_dir)
-        _log(f"Standalone script: {standalone.filename}")
-    except Exception as e:
-        _log(f"Coder skipped: {e}")
 
     # 9. Save thinking chain for demo display
     save_thinking(thinking_text, output_dir)

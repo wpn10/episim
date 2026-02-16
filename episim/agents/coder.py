@@ -110,7 +110,7 @@ def generate_standalone(model: EpidemicModel, paper_text: str) -> StandaloneScri
         f"<paper_context>\n{paper_context}\n</paper_context>"
     )
 
-    with client.messages.stream(
+    api_kwargs = dict(
         model=MODEL,
         max_tokens=8192,
         system=CODER_SYSTEM_PROMPT,
@@ -120,7 +120,13 @@ def generate_standalone(model: EpidemicModel, paper_text: str) -> StandaloneScri
             "description": "Submit the standalone reproduction script. You MUST use this tool.",
             "input_schema": tool_schema,
         }],
-    ) as stream:
+    )
+    if "opus-4-6" in MODEL:
+        api_kwargs["thinking"] = {"type": "adaptive"}
+        api_kwargs["output_config"] = {"effort": "high"}
+        api_kwargs["max_tokens"] = 16000
+
+    with client.messages.stream(**api_kwargs) as stream:
         response = stream.get_final_message()
 
     for block in response.content:

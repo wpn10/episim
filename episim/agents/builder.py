@@ -97,7 +97,7 @@ def generate_simulator(model: EpidemicModel, output_dir: Path) -> Path:
     model_json = model.model_dump_json(indent=2)
     tool_schema = GeneratedFiles.model_json_schema()
 
-    with client.messages.stream(
+    api_kwargs = dict(
         model=MODEL,
         max_tokens=16384,
         system=BUILDER_SYSTEM_PROMPT,
@@ -110,7 +110,13 @@ def generate_simulator(model: EpidemicModel, output_dir: Path) -> Path:
             "description": "Submit all generated simulator files. You MUST use this tool.",
             "input_schema": tool_schema,
         }],
-    ) as stream:
+    )
+    if "opus-4-6" in MODEL:
+        api_kwargs["thinking"] = {"type": "adaptive"}
+        api_kwargs["output_config"] = {"effort": "high"}
+        api_kwargs["max_tokens"] = 32000
+
+    with client.messages.stream(**api_kwargs) as stream:
         response = stream.get_final_message()
 
     # Extract tool_use result

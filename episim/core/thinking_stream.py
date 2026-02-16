@@ -194,3 +194,73 @@ class ThinkingAccumulator:
             '</div>'
             '</div>'
         )
+
+    # ── Parallel Execution Mode ──────────────────────────────────────────
+
+    def format_parallel_html(
+        self,
+        running: list[tuple[str, str]],
+        completed: list[tuple[str, str]],
+        excerpt_index: int = 0,
+    ) -> str:
+        """Render for PARALLEL execution: agent status badges + thinking excerpt.
+
+        Args:
+            running: List of (agent_name, effort_level) for running agents.
+            completed: List of (agent_name, effort_level) for completed agents.
+            excerpt_index: Which thinking excerpt to show (wraps around).
+        """
+        badges = []
+        for name, effort in completed:
+            badges.append(
+                f'<span class="agent-badge agent-done">'
+                f'&#10003; {html_mod.escape(name)} '
+                f'<span class="effort-label">{html_mod.escape(effort)}</span>'
+                f'</span>'
+            )
+        for name, effort in running:
+            badges.append(
+                f'<span class="agent-badge agent-running">'
+                f'&#9679; {html_mod.escape(name)} '
+                f'<span class="effort-label">{html_mod.escape(effort)}</span>'
+                f'</span>'
+            )
+        badges_html = " ".join(badges)
+
+        # Thinking excerpt
+        content_sections = [
+            (p, t) for p, t in self._all_sections() if len(t.strip()) > 50
+        ]
+        if content_sections:
+            phase, text = content_sections[excerpt_index % len(content_sections)]
+            excerpt = text.strip()[-350:]
+            excerpt_html = (
+                f'<span class="replay-phase">'
+                f'{html_mod.escape(phase.value)}</span>\n'
+                f'{html_mod.escape(excerpt)}'
+            )
+        else:
+            excerpt_html = ""
+
+        n_running = len(running)
+        header_text = (
+            f"Parallel Execution &mdash; {n_running} agent{'s' if n_running != 1 else ''} running"
+            if n_running > 0
+            else "Parallel Execution &mdash; complete"
+        )
+
+        return (
+            '<div class="thinking-live-container">'
+            '<div class="thinking-live-header thinking-parallel-header">'
+            '<span class="thinking-dot"></span>'
+            f'{header_text}'
+            '<span class="opus-tag">Opus 4.6</span>'
+            '</div>'
+            '<div class="thinking-live-console thinking-replay-console">'
+            '<div class="thinking-content">'
+            f'<div class="agent-badges">{badges_html}</div>'
+            f'<div class="replay-excerpt">{excerpt_html}</div>'
+            '</div>'
+            '</div>'
+            '</div>'
+        )

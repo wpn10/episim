@@ -96,7 +96,7 @@ def debug_and_fix(
         "required": ["fixes", "explanation"],
     }
 
-    with client.messages.stream(
+    api_kwargs = dict(
         model=MODEL,
         max_tokens=16384,
         system=DEBUGGER_SYSTEM_PROMPT,
@@ -106,7 +106,13 @@ def debug_and_fix(
             "description": "Submit the fixed file contents. You MUST use this tool.",
             "input_schema": fix_schema,
         }],
-    ) as stream:
+    )
+    if "opus-4-6" in MODEL:
+        api_kwargs["thinking"] = {"type": "adaptive"}
+        api_kwargs["output_config"] = {"effort": "high"}
+        api_kwargs["max_tokens"] = 32000
+
+    with client.messages.stream(**api_kwargs) as stream:
         response = stream.get_final_message()
 
     for block in response.content:

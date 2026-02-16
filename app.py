@@ -726,6 +726,44 @@ hr {
     margin-bottom: 6px;
     opacity: 0.6;
 }
+
+/* ── Parallel Execution ────────────────────────────────── */
+.thinking-parallel-header {
+    background: rgba(240,180,41,0.04) !important;
+    border-bottom-color: rgba(240,180,41,0.08) !important;
+    color: var(--primary) !important;
+}
+.agent-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.agent-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+}
+.agent-running {
+    color: var(--accent);
+    background: rgba(6,214,160,0.08);
+    border: 1px solid rgba(6,214,160,0.15);
+}
+.agent-done {
+    color: var(--primary);
+    background: rgba(240,180,41,0.08);
+    border: 1px solid rgba(240,180,41,0.15);
+}
+.effort-label {
+    opacity: 0.45;
+    font-size: 0.55rem;
+    margin-left: 2px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -855,37 +893,70 @@ def run_with_progress(paper_source: str):
 
     model, thinking_text = extract_model(context, on_thinking=_on_thinking)
 
-    # ── Transition to replay mode — keep user engaged during remaining stages ──
-    progress.progress(40, text="Generating paper summary...")
-    thinking_slot.markdown(
-        accumulator.format_replay_html("Generating Summary", 0),
-        unsafe_allow_html=True,
-    )
+    # ── Parallel execution: Summarizer + Builder + Coder ────────────────
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # 4. Summarizer Agent (non-critical)
-    summary = None
-    try:
-        summary = summarize_paper(paper_text, model)
-    except Exception:
-        pass
-
-    progress.progress(50, text="Building interactive simulator...")
-    thinking_slot.markdown(
-        accumulator.format_replay_html("Building Simulator", 1),
-        unsafe_allow_html=True,
-    )
-
-    # 5. Builder Agent
     output_dir = Path("output") / model.name.lower().replace(" ", "_")
-    generate_simulator(model, output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
+    all_agents = [
+        ("Summarizer", "medium"),
+        ("Builder", "high"),
+        ("Coder", "high"),
+    ]
+
+    progress.progress(40, text="Running 3 agents in parallel...")
+    thinking_slot.markdown(
+        accumulator.format_parallel_html(all_agents, []),
+        unsafe_allow_html=True,
+    )
+
+    summary = None
+    standalone_script = None
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        future_to_agent = {
+            executor.submit(summarize_paper, paper_text, model): ("Summarizer", "medium"),
+            executor.submit(generate_simulator, model, output_dir): ("Builder", "high"),
+            executor.submit(generate_standalone, model, paper_text): ("Coder", "high"),
+        }
+
+        done_agents: list[tuple[str, str]] = []
+        for future in as_completed(future_to_agent):
+            agent_name, effort = future_to_agent[future]
+            done_agents.append((agent_name, effort))
+            still_running = [a for a in all_agents if a not in done_agents]
+
+            progress.progress(
+                40 + len(done_agents) * 10,
+                text=f"{agent_name} complete ({effort} effort)...",
+            )
+            thinking_slot.markdown(
+                accumulator.format_parallel_html(still_running, done_agents, len(done_agents)),
+                unsafe_allow_html=True,
+            )
+
+            # Capture results
+            try:
+                result = future.result()
+                if agent_name == "Summarizer":
+                    summary = result
+                elif agent_name == "Coder":
+                    standalone_script = result
+                    if standalone_script:
+                        (output_dir / standalone_script.filename).write_text(
+                            standalone_script.code
+                        )
+            except Exception:
+                pass  # Summarizer and Coder are non-critical; Builder raises
+
+    # ── Sequential: Validator + Debugger (depends on Builder output) ────
     progress.progress(70, text="Validating against paper results...")
     thinking_slot.markdown(
-        accumulator.format_replay_html("Validating Results", 2),
+        accumulator.format_replay_html("Validating Results", 0),
         unsafe_allow_html=True,
     )
 
-    # 6. Validate + debug loop
     report = None
     for attempt in range(1, 4):
         report = validate(output_dir, model)
@@ -895,28 +966,13 @@ def run_with_progress(paper_source: str):
         if attempt < 3:
             progress.progress(70 + attempt * 5, text=f"Debugging discrepancy (attempt {attempt})...")
             thinking_slot.markdown(
-                accumulator.format_replay_html("Debugging Code", 3),
+                accumulator.format_replay_html("Debugging Code", 1),
                 unsafe_allow_html=True,
             )
             fixes = debug_and_fix(report, output_dir, model)
             apply_fixes(fixes, output_dir)
 
     write_report(report, output_dir)
-
-    progress.progress(85, text="Generating standalone reproduction script...")
-    thinking_slot.markdown(
-        accumulator.format_replay_html("Generating Code", 4),
-        unsafe_allow_html=True,
-    )
-
-    # 7. Coder Agent (non-critical)
-    standalone_script = None
-    try:
-        standalone_script = generate_standalone(model, paper_text)
-        if standalone_script:
-            (output_dir / standalone_script.filename).write_text(standalone_script.code)
-    except Exception:
-        pass
 
     thinking_slot.empty()
     progress.progress(100, text="Complete.")

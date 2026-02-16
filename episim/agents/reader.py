@@ -79,10 +79,9 @@ def extract_model(
             thinking_text = ""
             in_thinking_block = False
 
-            with client.messages.stream(
+            api_kwargs = dict(
                 model=MODEL,
-                max_tokens=40000,
-                thinking={"type": "enabled", "budget_tokens": 32768},
+                max_tokens=16000,
                 system=READER_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": context}],
                 tools=[{
@@ -90,7 +89,13 @@ def extract_model(
                     "description": "Submit the extracted epidemic model specification. You MUST use this tool.",
                     "input_schema": tool_schema,
                 }],
-            ) as stream:
+            )
+            if "opus-4-6" in MODEL:
+                api_kwargs["thinking"] = {"type": "adaptive"}
+                api_kwargs["output_config"] = {"effort": "max"}
+                api_kwargs["max_tokens"] = 32000
+
+            with client.messages.stream(**api_kwargs) as stream:
                 for event in stream:
                     # Thinking block boundaries
                     if event.type == "content_block_start":

@@ -47,7 +47,7 @@ def summarize_paper(paper_text: str, model: EpidemicModel) -> PaperSummary:
         f"<extracted_model>\n{model.model_dump_json(indent=2)}\n</extracted_model>"
     )
 
-    with client.messages.stream(
+    api_kwargs = dict(
         model=MODEL,
         max_tokens=4096,
         system=SUMMARIZER_SYSTEM_PROMPT,
@@ -57,7 +57,13 @@ def summarize_paper(paper_text: str, model: EpidemicModel) -> PaperSummary:
             "description": "Submit the paper summary. You MUST use this tool.",
             "input_schema": tool_schema,
         }],
-    ) as stream:
+    )
+    if "opus-4-6" in MODEL:
+        api_kwargs["thinking"] = {"type": "adaptive"}
+        api_kwargs["output_config"] = {"effort": "medium"}
+        api_kwargs["max_tokens"] = 8000
+
+    with client.messages.stream(**api_kwargs) as stream:
         response = stream.get_final_message()
 
     for block in response.content:

@@ -145,10 +145,11 @@ def test_extract_model_uses_correct_api_config(mock_anthropic_cls):
 
     call_kwargs = mock_client.messages.stream.call_args.kwargs
     assert call_kwargs["model"] == MODEL
-    assert call_kwargs["max_tokens"] == 40000
-    assert "thinking" in call_kwargs
-    assert call_kwargs["thinking"]["budget_tokens"] == 32768
     assert "tool_choice" not in call_kwargs
+    # Adaptive thinking only enabled for Opus 4.6
+    if "opus-4-6" in MODEL:
+        assert call_kwargs["thinking"] == {"type": "adaptive"}
+        assert call_kwargs["output_config"] == {"effort": "max"}
 
 
 @patch("episim.agents.reader.anthropic.Anthropic")
