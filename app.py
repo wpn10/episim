@@ -594,6 +594,84 @@ hr {
 .thinking-container [data-testid="stExpander"] {
     animation: pulseGlow 3s ease-in-out infinite;
 }
+
+/* ── Live Thinking Console ─────────────────────────────── */
+.thinking-live-container {
+    border: 1px solid rgba(6,214,160,0.2);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 12px 0 20px;
+}
+.thinking-live-header {
+    background: rgba(6,214,160,0.04);
+    padding: 10px 20px;
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid rgba(6,214,160,0.1);
+}
+.thinking-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+.opus-tag {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--primary-glow);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-accent);
+    letter-spacing: 1px;
+}
+.thinking-live-console {
+    background: #060a10;
+    color: #06d6a0;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    padding: 20px 24px;
+    max-height: 420px;
+    overflow-y: auto;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.thinking-live-console .phase {
+    display: block;
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.68rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 14px;
+    margin-bottom: 4px;
+    opacity: 0.85;
+}
+.thinking-live-console .phase:first-child {
+    margin-top: 0;
+}
+.thinking-live-console .cursor {
+    color: #06d6a0;
+    animation: blink-cursor 0.7s infinite;
+}
+@keyframes blink-cursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -709,8 +787,20 @@ def run_with_progress(paper_source: str):
     context = build_context(paper_text)
     progress.progress(15, text="Analyzing paper with extended thinking...")
 
-    # 3. Reader Agent
-    model, thinking_text = extract_model(context)
+    # 3. Reader Agent — with real-time thinking display
+    from episim.core.thinking_stream import ThinkingAccumulator
+
+    thinking_slot = st.empty()
+    accumulator = ThinkingAccumulator()
+
+    def _on_thinking(chunk: str):
+        accumulator.add_chunk(chunk)
+        thinking_slot.markdown(
+            accumulator.format_html(), unsafe_allow_html=True,
+        )
+
+    model, thinking_text = extract_model(context, on_thinking=_on_thinking)
+    thinking_slot.empty()  # Clear live console; full text stored in session state
     progress.progress(40, text="Generating paper summary...")
 
     # 4. Summarizer Agent (non-critical)
@@ -955,7 +1045,7 @@ if st.session_state.pipeline_done:
             )
 
             if result.returncode != 0:
-                st.error(f"Simulation error: {result.stderr[:500]}")
+                st.error(f"Simulation error:\n```\n{result.stderr}\n```")
             else:
                 results = json.loads(result.stdout)
                 t = np.array(results["t"])

@@ -23,10 +23,22 @@ Your task is to analyze the discrepancy and return FIXED versions of only the fi
 Common issues to look for:
 - ODE system doesn't match the model spec (wrong signs, missing terms, wrong compartment order)
 - Parameter names in code don't match config.json keys
-- solver.py doesn't pass parameters correctly to derivatives()
+- solver.py doesn't pass parameters correctly to derivatives() — the correct pattern is: `lambda t, y: derivatives(t, y, params)`
+- solver.py using wrong solve_ivp arguments (e.g. passing params as extra arg instead of via closure)
 - Initial conditions in wrong order relative to COMPARTMENTS
-- Numerical issues (need smaller max_step, different solver method for stiff systems)
+- Numerical issues — if RK45 fails, switch to method='LSODA' or 'Radau' for stiff systems, and try max_step=0.5
+- derivatives() returning wrong number of values vs COMPARTMENTS length
 - Import errors or typos in generated code
+
+IMPORTANT: solver.py MUST follow this exact pattern:
+```python
+sol = solve_ivp(
+    fun=lambda t, y: derivatives(t, y, params),
+    t_span=t_span, y0=y0, method='RK45',
+    t_eval=t_eval, max_step=1.0, rtol=1e-8, atol=1e-8
+)
+```
+If RK45 fails for stiff systems, change method to 'LSODA' which auto-detects stiffness.
 
 Return only the files that need fixing. Do not modify files that are correct.
 

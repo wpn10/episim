@@ -1,9 +1,12 @@
-"""Reader Agent — extracts EpidemicModel from paper text via Claude + adaptive thinking."""
+"""Reader Agent — extracts EpidemicModel from paper text via Claude + extended thinking.
+
+Supports real-time thinking streaming via an optional callback.
+"""
 
 from __future__ import annotations
 
-import json
 import os
+from typing import Callable
 
 import anthropic
 
@@ -53,10 +56,19 @@ Be thorough. Extract ALL parameters, even if there are many. If the paper report
 You MUST call the submit_model tool with the extracted model."""
 
 
-def extract_model(context: str) -> tuple[EpidemicModel, str]:
+def extract_model(
+    context: str,
+    on_thinking: Callable[[str], None] | None = None,
+) -> tuple[EpidemicModel, str]:
     """Extract an EpidemicModel from assembled context.
 
-    Returns (model, thinking_text) where thinking_text captures the AI's reasoning.
+    Args:
+        context: XML-tagged context string (paper + knowledge base).
+        on_thinking: Optional callback invoked with each thinking text chunk
+                     as it streams from the API. Used for real-time UI display.
+
+    Returns:
+        (model, thinking_text) where thinking_text captures the full reasoning.
     """
     client = anthropic.Anthropic()
 
@@ -65,11 +77,12 @@ def extract_model(context: str) -> tuple[EpidemicModel, str]:
     for attempt in range(2):
         try:
             thinking_text = ""
-            tool_input = None
+            in_thinking_block = False
 
             with client.messages.stream(
                 model=MODEL,
                 max_tokens=16384,
+                thinking={"type": "enabled", "budget_tokens": 32768},
                 system=READER_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": context}],
                 tools=[{
@@ -78,12 +91,30 @@ def extract_model(context: str) -> tuple[EpidemicModel, str]:
                     "input_schema": tool_schema,
                 }],
             ) as stream:
-                response = stream.get_final_message()
+                for event in stream:
+                    # Thinking block boundaries
+                    if event.type == "content_block_start":
+                        block = event.content_block
+                        if getattr(block, "type", None) == "thinking":
+                            in_thinking_block = True
+                        else:
+                            in_thinking_block = False
+                    elif event.type == "content_block_stop":
+                        in_thinking_block = False
 
-            # Extract thinking text
-            for block in response.content:
-                if block.type == "thinking":
-                    thinking_text += block.thinking + "\n"
+                    # Thinking text deltas — stream to callback
+                    elif (
+                        event.type == "content_block_delta"
+                        and in_thinking_block
+                    ):
+                        delta = event.delta
+                        chunk = getattr(delta, "thinking", None)
+                        if chunk:
+                            thinking_text += chunk
+                            if on_thinking:
+                                on_thinking(chunk)
+
+                response = stream.get_final_message()
 
             # Extract tool_use input
             for block in response.content:

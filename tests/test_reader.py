@@ -35,32 +35,51 @@ _SIR_TOOL_INPUT = {
 }
 
 
-def _make_mock_response(tool_input: dict, include_thinking: bool = True):
-    """Create a mock Anthropic API response with thinking + tool_use blocks."""
-    blocks = []
-
-    if include_thinking:
-        thinking_block = MagicMock()
-        thinking_block.type = "thinking"
-        thinking_block.thinking = "This paper describes a classic SIR model with beta=0.3 and gamma=0.1."
-        blocks.append(thinking_block)
-
+def _make_mock_response(tool_input: dict):
+    """Create a mock Anthropic API response with tool_use block."""
     tool_block = MagicMock()
     tool_block.type = "tool_use"
     tool_block.name = "submit_model"
     tool_block.input = tool_input
-    blocks.append(tool_block)
 
     response = MagicMock()
-    response.content = blocks
+    response.content = [tool_block]
     return response
 
 
-def _setup_stream_mock(mock_client, response):
-    """Set up mock_client.messages.stream() to work as a context manager."""
+def _make_thinking_events():
+    """Create mock stream events that include thinking deltas."""
+    events = []
+
+    # Thinking block start
+    start_event = MagicMock()
+    start_event.type = "content_block_start"
+    start_event.content_block = MagicMock()
+    start_event.content_block.type = "thinking"
+    events.append(start_event)
+
+    # Thinking delta
+    delta_event = MagicMock()
+    delta_event.type = "content_block_delta"
+    delta_event.delta = MagicMock()
+    delta_event.delta.type = "thinking_delta"
+    delta_event.delta.thinking = "This paper describes a classic SIR model with beta=0.3 and gamma=0.1."
+    events.append(delta_event)
+
+    # Thinking block stop
+    stop_event = MagicMock()
+    stop_event.type = "content_block_stop"
+    events.append(stop_event)
+
+    return events
+
+
+def _setup_stream_mock(mock_client, response, events=None):
+    """Set up mock_client.messages.stream() as a context manager with iterable events."""
     stream_ctx = MagicMock()
     stream_ctx.__enter__ = MagicMock(return_value=stream_ctx)
     stream_ctx.__exit__ = MagicMock(return_value=False)
+    stream_ctx.__iter__ = MagicMock(return_value=iter(events or []))
     stream_ctx.get_final_message.return_value = response
     mock_client.messages.stream.return_value = stream_ctx
     return stream_ctx
@@ -85,7 +104,8 @@ def test_extract_model_returns_valid_model(mock_anthropic_cls):
 def test_extract_model_captures_thinking(mock_anthropic_cls):
     mock_client = MagicMock()
     mock_anthropic_cls.return_value = mock_client
-    _setup_stream_mock(mock_client, _make_mock_response(_SIR_TOOL_INPUT))
+    events = _make_thinking_events()
+    _setup_stream_mock(mock_client, _make_mock_response(_SIR_TOOL_INPUT), events)
 
     model, thinking = extract_model("fake context")
 
@@ -105,6 +125,7 @@ def test_extract_model_retries_on_failure(mock_anthropic_cls):
     ok_ctx = MagicMock()
     ok_ctx.__enter__ = MagicMock(return_value=ok_ctx)
     ok_ctx.__exit__ = MagicMock(return_value=False)
+    ok_ctx.__iter__ = MagicMock(return_value=iter([]))
     ok_ctx.get_final_message.return_value = _make_mock_response(_SIR_TOOL_INPUT)
 
     mock_client.messages.stream.side_effect = [fail_ctx, ok_ctx]
@@ -125,9 +146,24 @@ def test_extract_model_uses_correct_api_config(mock_anthropic_cls):
     call_kwargs = mock_client.messages.stream.call_args.kwargs
     assert call_kwargs["model"] == MODEL
     assert call_kwargs["max_tokens"] == 16384
-    # No thinking or tool_choice params (removed for API compatibility)
+    assert "thinking" in call_kwargs
+    assert call_kwargs["thinking"]["budget_tokens"] == 32768
     assert "tool_choice" not in call_kwargs
-    assert "thinking" not in call_kwargs
+
+
+@patch("episim.agents.reader.anthropic.Anthropic")
+def test_on_thinking_callback_receives_chunks(mock_anthropic_cls):
+    """Verify that the on_thinking callback is called with thinking chunks."""
+    mock_client = MagicMock()
+    mock_anthropic_cls.return_value = mock_client
+    events = _make_thinking_events()
+    _setup_stream_mock(mock_client, _make_mock_response(_SIR_TOOL_INPUT), events)
+
+    chunks = []
+    model, thinking = extract_model("context", on_thinking=chunks.append)
+
+    assert len(chunks) == 1
+    assert "SIR model" in chunks[0]
 
 
 def test_system_prompt_has_key_instructions():

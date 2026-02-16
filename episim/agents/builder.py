@@ -26,13 +26,37 @@ You will receive an EpidemicModel JSON spec. Generate five files that together f
 - Use only basic math (no imports needed inside the function).
 
 ### solver.py
-- `from scipy.integrate import solve_ivp`
-- `import numpy as np`
-- `from model import COMPARTMENTS, derivatives`
-- Define `def run_simulation(params: dict, y0: list[float], t_span: tuple, num_points: int = 1000) -> dict`:
-  - Uses `method="RK45"` with `max_step=1.0` for stability
-  - Uses `rtol=1e-8, atol=1e-8`
-  - Returns `{"t": ndarray, "S": ndarray, "I": ndarray, ...}` with keys = "t" + COMPARTMENTS
+CRITICAL: Use this EXACT template, only changing nothing. Do not deviate:
+
+```python
+from scipy.integrate import solve_ivp
+import numpy as np
+from model import COMPARTMENTS, derivatives
+
+def run_simulation(params, y0, t_span, num_points=1000):
+    t_eval = np.linspace(t_span[0], t_span[1], num_points)
+    sol = solve_ivp(
+        fun=lambda t, y: derivatives(t, y, params),
+        t_span=t_span,
+        y0=y0,
+        method='RK45',
+        t_eval=t_eval,
+        max_step=1.0,
+        rtol=1e-8,
+        atol=1e-8,
+    )
+    if not sol.success:
+        raise RuntimeError(f"ODE solver failed: {sol.message}")
+    results = {"t": sol.t}
+    for i, name in enumerate(COMPARTMENTS):
+        results[name] = sol.y[i]
+    return results
+```
+
+- The `fun` argument MUST be `lambda t, y: derivatives(t, y, params)` — wrapping params via closure.
+- `y0` is passed directly as a list. Do NOT convert or reshape it.
+- `t_span` is a tuple `(0, days)`. Do NOT unpack it differently.
+- Returns `{"t": ndarray, "compartment_name": ndarray, ...}` with keys = "t" + COMPARTMENTS
 
 ### app.py
 - A Streamlit application.
